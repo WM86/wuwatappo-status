@@ -29,7 +29,7 @@
       radial-gradient(800px 500px at 92% 8%, rgba(140,80,255,.16), transparent 65%),
       var(--bg);
   }
-  main{max-width:860px;margin:0 auto;padding:44px 20px 60px}
+  main{max-width:880px;margin:0 auto;padding:44px 20px 60px}
   header{margin-bottom:26px}
   h1{font-size:23px;font-weight:600;margin:0 0 8px;letter-spacing:.3px}
   .host{font-size:12.5px;color:var(--sub);font-family:ui-monospace,Consolas,monospace;margin:0}
@@ -57,15 +57,22 @@
   .check .unit{font-size:12px;color:var(--sub)}
   .check .rate{font-size:11.5px;color:var(--sub);margin-top:6px}
   .check.down .ms,.check.down .name{color:var(--bad)}
-  .row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:14px}
+  .row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:6px}
   h2{font-size:13.5px;font-weight:600;margin:0;color:var(--sub);letter-spacing:.4px}
-  .bars{display:flex;gap:2px;height:44px;align-items:stretch}
-  .bar{flex:1 1 0;border-radius:2px;background:var(--none);min-width:1px;transition:transform .12s}
-  .bar:hover{transform:scaleY(1.08)}
-  .bar.ok{background:var(--ok);opacity:.85}
+
+  .lines{margin-top:12px;display:flex;flex-direction:column;gap:12px}
+  .line{display:grid;grid-template-columns:104px 1fr;gap:12px;align-items:center}
+  .line-meta{min-width:0}
+  .ln{display:block;font-size:12.5px;font-weight:600}
+  .lr{display:block;font-size:11px;color:var(--sub);margin-top:3px;font-variant-numeric:tabular-nums}
+  .bars{display:flex;gap:2px;height:38px;align-items:flex-end}
+  .bar{flex:1 1 0;border-radius:2px;background:var(--none);min-width:1px;height:100%;opacity:.9}
+  .bar.ok{background:var(--ok);opacity:.72}
   .bar.warn{background:var(--warn);opacity:.9}
-  .bar.bad{background:var(--bad);opacity:.9}
-  .legend{display:flex;gap:16px;margin-top:12px;font-size:11.5px;color:var(--sub);flex-wrap:wrap}
+  .bar.bad{background:var(--bad);opacity:.95;height:100%!important}
+  .bar:hover{opacity:1}
+
+  .legend{display:flex;gap:16px;margin-top:14px;font-size:11.5px;color:var(--sub);flex-wrap:wrap}
   .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:middle}
   footer{margin-top:22px;font-size:12px;color:var(--sub);line-height:1.7}
   a{color:#7fa6ff;text-decoration:none}
@@ -90,14 +97,13 @@
 
   <section class="card">
     <div class="row">
-      <h2>最近 24 小时</h2>
+      <h2>各接口 · 最近 24 小时</h2>
       <span class="sub" id="uptime" style="margin:0"></span>
     </div>
-    <div class="bars" id="bars"></div>
+    <div class="lines" id="lines"></div>
     <div class="legend">
-      <span><i style="background:var(--ok)"></i>全部正常</span>
-      <span><i style="background:var(--warn)"></i>部分异常</span>
-      <span><i style="background:var(--bad)"></i>全部不通</span>
+      <span><i style="background:var(--ok)"></i>通（柱高=响应时间）</span>
+      <span><i style="background:var(--bad)"></i>不通</span>
       <span><i style="background:var(--none)"></i>无数据</span>
     </div>
   </section>
@@ -117,6 +123,7 @@ const LABEL = {
   auth:   { name: "账号接口", path: "/api/frontend/user/me" },
 };
 const DAY = 24 * 3600 * 1000;
+const MAX_BARS = 288;
 
 function fmtTime(iso) {
   const d = new Date(iso);
@@ -129,6 +136,11 @@ function ago(iso) {
   if (s < 5400) return Math.round(s / 60) + " 分钟前";
   if (s < 172800) return Math.round(s / 3600) + " 小时前";
   return Math.round(s / 86400) + " 天前";
+}
+function median(list) {
+  if (!list.length) return null;
+  const v = list.slice().sort((a, b) => a - b);
+  return v[Math.floor(v.length / 2)];
 }
 
 async function main() {
@@ -146,6 +158,7 @@ async function main() {
   const runs = Array.isArray(data.runs) ? data.runs : [];
   const ids = ORDER.filter((id) => checks[id]);
   const down = ids.filter((id) => !checks[id].ok);
+  const last24 = runs.filter((r) => Date.now() - new Date(r.t).getTime() <= DAY);
 
   // 总状态
   const dot = document.getElementById("overall-dot");
@@ -162,8 +175,6 @@ async function main() {
     dot.className = "dot warn";
     text.textContent = "部分异常";
   }
-
-  const last24 = runs.filter((r) => Date.now() - new Date(r.t).getTime() <= DAY);
   const okRuns = last24.filter((r) => ids.every((id) => r.ok && r.ok[id]));
   const rate = last24.length ? (okRuns.length / last24.length) * 100 : null;
   document.getElementById("overall-sub").textContent = down.length
@@ -190,29 +201,64 @@ async function main() {
     box.appendChild(el);
   });
 
-  // 24h 条
-  const bars = document.getElementById("bars");
-  bars.innerHTML = "";
-  const MAX = 288;
-  const shown = runs.slice(-MAX);
-  shown.forEach((r) => {
-    const flags = ids.map((id) => r.ok && r.ok[id]);
-    const up = flags.filter(Boolean).length;
-    const b = document.createElement("div");
-    b.className = "bar " + (up === ids.length ? "ok" : up === 0 ? "bad" : "warn");
-    b.title = fmtTime(r.t) + " · " + up + "/" + ids.length + " 通";
-    bars.appendChild(b);
+  // 每个接口分开一条时间带
+  const shown = runs.slice(-MAX_BARS);
+  const wrap = document.getElementById("lines");
+  wrap.innerHTML = "";
+  ids.forEach((id) => {
+    const line = document.createElement("div");
+    line.className = "line";
+
+    const meta = document.createElement("div");
+    meta.className = "line-meta";
+
+    const mine = last24.filter((r) => r.ok && r.ok[id] !== undefined);
+    const mineOk = mine.filter((r) => r.ok[id]);
+    const mineRate = mine.length ? (mineOk.length / mine.length) * 100 : null;
+    const msList = mineOk.map((r) => r.ms && r.ms[id]).filter((v) => typeof v === "number");
+    const med = median(msList);
+
+    meta.innerHTML =
+      '<span class="ln">' + LABEL[id].name + "</span>" +
+      '<span class="lr">' +
+        (mineRate === null ? "—" : mineRate.toFixed(1) + "%") +
+        " · " + (med === null ? "—" : med + "ms") +
+      "</span>";
+
+    const bars = document.createElement("div");
+    bars.className = "bars";
+    shown.forEach((r) => {
+      const okFlag = !!(r.ok && r.ok[id]);
+      const ms = r.ms && r.ms[id];
+      const b = document.createElement("div");
+      b.className = "bar " + (okFlag ? "ok" : "bad");
+      if (okFlag && typeof ms === "number") {
+        // 400ms 以下顶到 100%，1600ms 以上压到 45%
+        const h = Math.min(100, Math.max(45, 100 - (ms - 400) / 24));
+        b.style.height = h.toFixed(1) + "%";
+        b.title = fmtTime(r.t) + " · " + ms + "ms";
+      } else if (okFlag) {
+        b.title = fmtTime(r.t) + " · 通";
+      } else {
+        b.title = fmtTime(r.t) + " · 不通";
+      }
+      bars.appendChild(b);
+    });
+    const pad = Math.max(0, 60 - shown.length);
+    for (let i = 0; i < pad; i++) {
+      const b = document.createElement("div");
+      b.className = "bar";
+      b.title = "无数据";
+      bars.appendChild(b);
+    }
+
+    line.appendChild(meta);
+    line.appendChild(bars);
+    wrap.appendChild(line);
   });
-  const pad = Math.max(0, Math.min(MAX, 60) - shown.length);
-  for (let i = 0; i < pad; i++) {
-    const b = document.createElement("div");
-    b.className = "bar";
-    b.title = "无数据";
-    bars.appendChild(b);
-  }
+
   document.getElementById("uptime").textContent =
     last24.length ? "共 " + last24.length + " 次探测" : "";
-
   document.getElementById("updated").textContent =
     "最后检查：" + fmtTime(data.updated) + "（" + ago(data.updated) + "）";
 }
