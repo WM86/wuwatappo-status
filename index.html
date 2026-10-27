@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>鸣潮桌宠 · 服务状态</title>
+<meta name="description" content="api-mc-wuwatappo.kurogames-global.com 的可用性监控">
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#080a0f;
+    --card:rgba(255,255,255,.045);
+    --line:rgba(255,255,255,.09);
+    --text:#e9eef7;
+    --sub:#8d97a8;
+    --ok:#3ddc97;
+    --warn:#ffc857;
+    --bad:#ff5f6d;
+    --none:#39404d;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    min-height:100vh;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+    color:var(--text);
+    background:
+      radial-gradient(900px 600px at 12% -10%, rgba(74,110,255,.22), transparent 60%),
+      radial-gradient(800px 500px at 92% 8%, rgba(140,80,255,.16), transparent 65%),
+      var(--bg);
+  }
+  main{max-width:860px;margin:0 auto;padding:44px 20px 60px}
+  header{margin-bottom:26px}
+  h1{font-size:23px;font-weight:600;margin:0 0 8px;letter-spacing:.3px}
+  .host{font-size:12.5px;color:var(--sub);font-family:ui-monospace,Consolas,monospace;margin:0}
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:18px 20px;
+    backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);
+  }
+  .overall{display:flex;align-items:center;gap:16px;margin-bottom:14px}
+  .dot{width:14px;height:14px;border-radius:50%;background:var(--none);flex:0 0 auto;box-shadow:0 0 0 6px rgba(255,255,255,.03)}
+  .dot.ok{background:var(--ok);box-shadow:0 0 18px rgba(61,220,151,.55)}
+  .dot.warn{background:var(--warn);box-shadow:0 0 18px rgba(255,200,87,.5)}
+  .dot.bad{background:var(--bad);box-shadow:0 0 18px rgba(255,95,109,.5)}
+  #overall-text{font-size:17px;font-weight:600}
+  .sub{font-size:12.5px;color:var(--sub);margin-top:4px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:14px}
+  .check{padding:15px 16px}
+  .check .name{font-size:13.5px;font-weight:600}
+  .check .path{font-size:11px;color:var(--sub);font-family:ui-monospace,Consolas,monospace;margin-top:3px;word-break:break-all}
+  .check .stat{display:flex;align-items:baseline;gap:8px;margin-top:12px}
+  .check .ms{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+  .check .unit{font-size:12px;color:var(--sub)}
+  .check .rate{font-size:11.5px;color:var(--sub);margin-top:6px}
+  .check.down .ms,.check.down .name{color:var(--bad)}
+  .row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:14px}
+  h2{font-size:13.5px;font-weight:600;margin:0;color:var(--sub);letter-spacing:.4px}
+  .bars{display:flex;gap:2px;height:44px;align-items:stretch}
+  .bar{flex:1 1 0;border-radius:2px;background:var(--none);min-width:1px;transition:transform .12s}
+  .bar:hover{transform:scaleY(1.08)}
+  .bar.ok{background:var(--ok);opacity:.85}
+  .bar.warn{background:var(--warn);opacity:.9}
+  .bar.bad{background:var(--bad);opacity:.9}
+  .legend{display:flex;gap:16px;margin-top:12px;font-size:11.5px;color:var(--sub);flex-wrap:wrap}
+  .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:middle}
+  footer{margin-top:22px;font-size:12px;color:var(--sub);line-height:1.7}
+  a{color:#7fa6ff;text-decoration:none}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>鸣潮桌宠 · 服务状态</h1>
+    <p class="host">api-mc-wuwatappo.kurogames-global.com</p>
+  </header>
+
+  <section class="card overall">
+    <div class="dot" id="overall-dot"></div>
+    <div>
+      <div id="overall-text">正在读取…</div>
+      <div class="sub" id="overall-sub"></div>
+    </div>
+  </section>
+
+  <section class="grid" id="checks"></section>
+
+  <section class="card">
+    <div class="row">
+      <h2>最近 24 小时</h2>
+      <span class="sub" id="uptime" style="margin:0"></span>
+    </div>
+    <div class="bars" id="bars"></div>
+    <div class="legend">
+      <span><i style="background:var(--ok)"></i>全部正常</span>
+      <span><i style="background:var(--warn)"></i>部分异常</span>
+      <span><i style="background:var(--bad)"></i>全部不通</span>
+      <span><i style="background:var(--none)"></i>无数据</span>
+    </div>
+  </section>
+
+  <footer>
+    <p id="updated"></p>
+    <p>每 5 分钟探一次，探测节点是 GitHub Actions 的境外机房——与你本机看到的链路不完全一样，这里只反映官方接口本身还能不能应答。</p>
+  </footer>
+</main>
+
+<script>
+const ORDER = ["common", "atlas", "socket", "auth"];
+const LABEL = {
+  common: { name: "公共接口", path: "/api/common/activity-config" },
+  atlas:  { name: "图鉴接口", path: "/api/common/atlas" },
+  socket: { name: "联机握手", path: "/socket.io/?EIO=4" },
+  auth:   { name: "账号接口", path: "/api/frontend/user/me" },
+};
+const DAY = 24 * 3600 * 1000;
+
+function fmtTime(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleString("zh-CN", { hour12: false });
+}
+function ago(iso) {
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 90) return Math.round(s) + " 秒前";
+  if (s < 5400) return Math.round(s / 60) + " 分钟前";
+  if (s < 172800) return Math.round(s / 3600) + " 小时前";
+  return Math.round(s / 86400) + " 天前";
+}
+
+async function main() {
+  let data;
+  try {
+    const res = await fetch("data/history.json?t=" + Date.now(), { cache: "no-store" });
+    data = await res.json();
+  } catch (err) {
+    document.getElementById("overall-text").textContent = "读不到监控数据";
+    document.getElementById("overall-sub").textContent = String(err).slice(0, 120);
+    return;
+  }
+
+  const checks = data.checks || {};
+  const runs = Array.isArray(data.runs) ? data.runs : [];
+  const ids = ORDER.filter((id) => checks[id]);
+  const down = ids.filter((id) => !checks[id].ok);
+
+  // 总状态
+  const dot = document.getElementById("overall-dot");
+  const text = document.getElementById("overall-text");
+  if (!ids.length) {
+    text.textContent = "没有探测结果";
+  } else if (!down.length) {
+    dot.className = "dot ok";
+    text.textContent = "全部正常";
+  } else if (down.length === ids.length) {
+    dot.className = "dot bad";
+    text.textContent = "服务中断";
+  } else {
+    dot.className = "dot warn";
+    text.textContent = "部分异常";
+  }
+
+  const last24 = runs.filter((r) => Date.now() - new Date(r.t).getTime() <= DAY);
+  const okRuns = last24.filter((r) => ids.every((id) => r.ok && r.ok[id]));
+  const rate = last24.length ? (okRuns.length / last24.length) * 100 : null;
+  document.getElementById("overall-sub").textContent = down.length
+    ? "异常：" + down.map((id) => LABEL[id].name).join("、")
+    : (rate === null ? "还没有历史数据" : "最近 24 小时全部正常率 " + rate.toFixed(1) + "%");
+
+  // 各接口卡
+  const box = document.getElementById("checks");
+  box.innerHTML = "";
+  ids.forEach((id) => {
+    const c = checks[id];
+    const el = document.createElement("div");
+    el.className = "card check" + (c.ok ? "" : " down");
+    const mine = last24.filter((r) => r.ok && r.ok[id] !== undefined);
+    const mineOk = mine.filter((r) => r.ok[id]);
+    const mineRate = mine.length ? (mineOk.length / mine.length) * 100 : null;
+    const ms = c.ok && c.ms !== null ? c.ms : "—";
+    el.innerHTML =
+      '<div class="name">' + LABEL[id].name + "</div>" +
+      '<div class="path">' + LABEL[id].path + "</div>" +
+      '<div class="stat"><span class="ms">' + ms + '</span><span class="unit">' +
+        (c.ok ? "ms" : (c.detail || "不通")) + "</span></div>" +
+      '<div class="rate">' + (mineRate === null ? "24h 可用率 —" : "24h 可用率 " + mineRate.toFixed(1) + "%") + "</div>";
+    box.appendChild(el);
+  });
+
+  // 24h 条
+  const bars = document.getElementById("bars");
+  bars.innerHTML = "";
+  const MAX = 288;
+  const shown = runs.slice(-MAX);
+  shown.forEach((r) => {
+    const flags = ids.map((id) => r.ok && r.ok[id]);
+    const up = flags.filter(Boolean).length;
+    const b = document.createElement("div");
+    b.className = "bar " + (up === ids.length ? "ok" : up === 0 ? "bad" : "warn");
+    b.title = fmtTime(r.t) + " · " + up + "/" + ids.length + " 通";
+    bars.appendChild(b);
+  });
+  const pad = Math.max(0, Math.min(MAX, 60) - shown.length);
+  for (let i = 0; i < pad; i++) {
+    const b = document.createElement("div");
+    b.className = "bar";
+    b.title = "无数据";
+    bars.appendChild(b);
+  }
+  document.getElementById("uptime").textContent =
+    last24.length ? "共 " + last24.length + " 次探测" : "";
+
+  document.getElementById("updated").textContent =
+    "最后检查：" + fmtTime(data.updated) + "（" + ago(data.updated) + "）";
+}
+
+main();
+setInterval(main, 60000);
+</script>
+</body>
+</html>
