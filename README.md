@@ -1,5 +1,7 @@
 # wuwatappo-status
 
+🌐 在线状态页：https://wm86.github.io/wuwatappo-status/
+
 鸣潮桌宠（Wuwa Tappo）官方接口的可用性监控，纯静态站。
 
 - 监控目标：`api-mc-wuwatappo.kurogames-global.com`
