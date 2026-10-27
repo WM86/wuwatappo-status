@@ -3,6 +3,10 @@ name: probe
 on:
   schedule:
     - cron: "*/5 * * * *"
+  push:
+    paths:
+      - "probe/**"
+      - ".github/workflows/probe.yml"
   workflow_dispatch:
 
 permissions:
