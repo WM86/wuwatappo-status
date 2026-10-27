@@ -126,17 +126,12 @@ const DAY = 24 * 3600 * 1000;
 const MAX_BARS = 288;
 const RAW_URL = "https://raw.githubusercontent.com/WM86/wuwatappo-status/master/data/history.json";
 
-// 数据源：
-// - 在 github.io 上直接用同目录的 data/history.json（每次部署就跟着变）
-// - 在别的域名（Vercel）上直接拉仓库原文件，带 5 分钟一档的版本号绕开 CDN 缓存
+// 数据源：同源优先（GitHub Pages 是部署产物，Vercel 侧靠 rewrite 代理到仓库原文件）
+// raw.githubusercontent 在国内容易解析不了，只当最后一个备选
 function buildSources() {
-  const bucket = Math.floor(Date.now() / 300000);
   const local = { url: "data/history.json?t=" + Date.now(), bust: false };
-  const list = [];
-  if (location.hostname.endsWith("github.io")) list.push(local);
-  list.push({ url: RAW_URL + "?v=" + bucket, bust: false });
-  list.push(local);
-  return list;
+  const bucket = Math.floor(Date.now() / 300000);
+  return [local, { url: RAW_URL + "?v=" + bucket, bust: false }, local];
 }
 
 async function loadData() {
