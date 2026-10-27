@@ -124,14 +124,14 @@ const LABEL = {
 };
 const DAY = 24 * 3600 * 1000;
 const MAX_BARS = 288;
-const RAW_URL = "https://raw.githubusercontent.com/WM86/wuwatappo-status/master/data/history.json";
 
 // 数据源：同源优先（GitHub Pages 是部署产物，Vercel 侧靠 rewrite 代理到仓库原文件）
 // raw.githubusercontent 在国内容易解析不了，只当最后一个备选
 function buildSources() {
   const local = { url: "data/history.json?t=" + Date.now(), bust: false };
-  const bucket = Math.floor(Date.now() / 300000);
-  return [local, { url: RAW_URL + "?v=" + bucket, bust: false }, local];
+  if (location.hostname.endsWith("github.io")) return [local];
+  // Vercel 上用 /api/history：函数每次回源头取，不经边缘缓存
+  return [{ url: "/api/history?t=" + Date.now(), bust: false }, local];
 }
 
 async function loadData() {
@@ -289,3 +289,4 @@ setInterval(main, 60000);
 </script>
 </body>
 </html>
+

@@ -1,8 +1,0 @@
-{
-  "rewrites": [
-    {
-      "source": "/data/history.json",
-      "destination": "https://raw.githubusercontent.com/WM86/wuwatappo-status/master/data/history.json"
-    }
-  ]
-}
