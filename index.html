@@ -124,6 +124,23 @@ const LABEL = {
 };
 const DAY = 24 * 3600 * 1000;
 const MAX_BARS = 288;
+// 数据源：同目录优先（GitHub Pages），没有就拉仓库里的原文件（Vercel 静态部纤）
+const SOURCES = [
+  { url: "data/history.json", bust: true },
+  { url: "https://raw.githubusercontent.com/WM86/wuwatappo-status/master/data/history.json", bust: false },
+];
+
+async function loadData() {
+  for (const src of SOURCES) {
+    try {
+      const url = src.bust ? src.url + "?t=" + Date.now() : src.url;
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) continue;
+      return await res.json();
+    } catch (err) { /* 试下一个 */ }
+  }
+  return null;
+}
 
 function fmtTime(iso) {
   const d = new Date(iso);
@@ -146,8 +163,8 @@ function median(list) {
 async function main() {
   let data;
   try {
-    const res = await fetch("data/history.json?t=" + Date.now(), { cache: "no-store" });
-    data = await res.json();
+    data = await loadData();
+    if (!data) throw new Error("两个数据源都没拿到");
   } catch (err) {
     document.getElementById("overall-text").textContent = "读不到监控数据";
     document.getElementById("overall-sub").textContent = String(err).slice(0, 120);
