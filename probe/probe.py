@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Wuwa Tappo (鸣潮桌宠) 官方 API status probe.
 
-被 .github/workflows/probe.yml 每 5 分钟叫一次, 结果并进 data/history.json。
+被 .github/workflows/probe.yml 按 schedule 每 5 分钟叫一次, 结果并进 data/history.json。
+改了这个文件也会顺手触发一轮（push 触发）。
 只用标准库, 不需要装依赖。
 """
 from __future__ import annotations
